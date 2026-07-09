@@ -3,7 +3,8 @@ import { runPromptAnalysis } from "@/lib/pipeline/runPromptAnalysis";
 import type { Brand, EngineId } from "@/lib/types";
 
 // 엔진 호출 + 분류는 수십 초 걸릴 수 있다.
-export const maxDuration = 120;
+// Vercel Hobby 는 함수 최대 60초 → 그 한도에 맞춘다(초과 시 엔진/분류 줄이기).
+export const maxDuration = 60;
 
 const ALLOWED_ENGINES: EngineId[] = ["chatgpt", "perplexity", "gemini"];
 
