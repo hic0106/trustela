@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AnalysisResult, EngineId, Mention, HistoryPoint } from "@/lib/types";
-import { useTranslation } from "@/lib/i18n/useTranslation";
-import { LOCALES } from "@/lib/i18n/translations";
 import { SovTimeline } from "@/components/SovTimeline";
 
 type Classifiedish = Mention & { citationClass?: string; confidence?: number };
@@ -22,14 +20,7 @@ function slug(s: string, fallback: string): string {
   return out || fallback;
 }
 
-const classColor: Record<string, string> = {
-  conversion: "bg-green-500/15 text-green-600 dark:text-green-400",
-  neutral: "bg-gray-500/15 text-gray-500 dark:text-gray-400",
-  negative: "bg-red-500/15 text-red-600 dark:text-red-400",
-};
-
 export default function Home() {
-  const { locale, setLocale, t } = useTranslation();
   const [prompt, setPrompt] = useState("What are the best alcohol-free wine brands?");
   const [selfName, setSelfName] = useState("Acme Wines");
   const [competitors, setCompetitors] = useState("Noughty, Giesen, Zeronimo, Ariel");
@@ -44,7 +35,43 @@ export default function Home() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
 
-  // brandId → name 매핑 (result 엔 name 이 없으니 입력에서 재구성).
+  // Scroll-reveal for marketing blocks. Content is visible by default; we only
+  // arm the animation once JS is running, and always guarantee reveal via a
+  // fallback timer so nothing can get stuck invisible (e.g. if IO never fires).
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>(".tl");
+    if (!root) return;
+    const els = Array.from(root.querySelectorAll<HTMLElement>(".rv"));
+    const revealAll = () => els.forEach((e) => e.classList.add("in"));
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced || !("IntersectionObserver" in window)) {
+      revealAll();
+      return;
+    }
+
+    root.classList.add("reveal-on"); // arm the hidden→visible transition
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            en.target.classList.add("in");
+            io.unobserve(en.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+    );
+    els.forEach((e) => io.observe(e));
+
+    // Safety net: if IO doesn't fire (backgrounded tab, etc.), reveal everything.
+    const fallback = window.setTimeout(revealAll, 1600);
+    return () => {
+      io.disconnect();
+      window.clearTimeout(fallback);
+    };
+  }, []);
+
   function buildBrandNames(): Map<string, string> {
     const m = new Map<string, string>();
     m.set(slug(selfName, "self"), selfName.trim());
@@ -80,10 +107,9 @@ export default function Home() {
         body: JSON.stringify({ prompt, brands, selfBrandId: selfId, engines: selectedEngines, classify }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t.requestFailed(res.status));
+      if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
       setResult(data as AnalysisResult);
 
-      // 방금 저장된 실행을 포함해 이 프롬프트의 시계열을 불러온다(실패해도 무시).
       try {
         const hres = await fetch(`/api/history?prompt=${encodeURIComponent(prompt)}`);
         if (hres.ok) {
@@ -91,7 +117,7 @@ export default function Home() {
           setHistory((hdata.points ?? []) as HistoryPoint[]);
         }
       } catch {
-        // 히스토리는 부가 기능 — 실패해도 분석 결과는 유지.
+        // History is a nice-to-have — ignore failures.
       }
     } catch (err) {
       setError((err as Error).message);
@@ -107,194 +133,345 @@ export default function Home() {
       )
     : [];
 
+  function toggleEngine(id: EngineId) {
+    setEngines((s) => ({ ...s, [id]: !s[id] }));
+  }
+
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <header className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Trustela</h1>
-          <p className="mt-1 text-sm opacity-70">{t.tagline}</p>
+    <div className="tl">
+      {/* NAV */}
+      <nav className="nav">
+        <div className="wrap">
+          <div className="row">
+            <div className="brand"><span className="logo">🍷</span> Trustela</div>
+            <div className="links">
+              <a href="#what">What you learn</a>
+              <a href="#how">How it works</a>
+              <a href="#results">Real results</a>
+              <a href="#pricing">Pricing</a>
+            </div>
+            <a className="btn btn-primary" href="#try">Start free</a>
+          </div>
         </div>
-        <select
-          value={locale}
-          onChange={(e) => setLocale(e.target.value as typeof locale)}
-          aria-label="Language"
-          className="shrink-0 rounded-lg border border-black/15 dark:border-white/20 bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-black/40 dark:focus:border-white/50"
-        >
-          {LOCALES.map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.label}
-            </option>
-          ))}
-        </select>
-      </header>
+      </nav>
 
-      <section className="space-y-4 rounded-xl border border-black/10 dark:border-white/15 p-5">
-        <label className="block">
-          <span className="text-sm font-medium">{t.promptLabel}</span>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={2}
-            className="mt-1 w-full rounded-lg border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 dark:focus:border-white/50"
-          />
-        </label>
+      {/* HERO */}
+      <section className="hero">
+        <div className="wrap">
+          <div className="eyebrow rv">AI Search Visibility · GEO</div>
+          <h1 className="rv d1">Shoppers don&apos;t Google anymore —<br />they <span className="hl">ask AI</span></h1>
+          <p className="sub rv d2">
+            Track whether ChatGPT and Perplexity recommend your brand, how you stack up against
+            competitors, and whether those citations actually drive purchases — all in one dashboard.
+          </p>
+          <div className="cta-row rv d3">
+            <a className="btn btn-primary btn-lg" href="#try">Start free analysis →</a>
+            <a className="btn btn-ghost btn-lg" href="#how">See how it works</a>
+          </div>
+          <div className="engines-row rv d4">
+            <span className="cap">AI search engines we track</span>
+            <div className="logos">
+              <span className="elogo"><span className="d" style={{ background: "#10a37f" }} />ChatGPT</span>
+              <span className="elogo"><span className="d" style={{ background: "#20808d" }} />Perplexity</span>
+              <span className="elogo"><span className="d" style={{ background: "#4285f4" }} />Gemini</span>
+              <span className="elogo"><span className="d" style={{ background: "#d97757" }} />Claude</span>
+            </div>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-sm font-medium">{t.selfBrandLabel}</span>
-            <input
-              value={selfName}
-              onChange={(e) => setSelfName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 dark:focus:border-white/50"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">
-              {t.competitorsLabel}{" "}
-              <span className="opacity-60">({t.competitorsHint})</span>
-            </span>
-            <input
-              value={competitors}
-              onChange={(e) => setCompetitors(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 dark:focus:border-white/50"
-            />
-          </label>
+          <div className="hero-mock rv d4">
+            <div className="browser">
+              <div className="tb"><span className="dot" /><span className="dot" /><span className="dot" /><span className="u">app.trustela.com/dashboard</span></div>
+              <div className="dash">
+                <div className="dash-head">
+                  <div className="q">“What are the best alcohol-free wine brands?” <span>· You: Acme Wines</span></div>
+                  <div className="eng">✓ ChatGPT · ✓ Perplexity</div>
+                </div>
+                <div className="kpi">
+                  <div className="k"><div className="lab">Your Share of Voice</div><div className="val down">0%<small className="down"> not shown</small></div></div>
+                  <div className="k"><div className="lab">Top competitor</div><div className="val">Noughty</div></div>
+                  <div className="k"><div className="lab">Conversion citations</div><div className="val">2<small> found</small></div></div>
+                </div>
+                <div>
+                  <div className="barlab">Share of Voice · vs competitors</div>
+                  <div className="bar-row"><span className="bar-name">Noughty</span><span className="track"><i className="fill" style={{ width: "50%" }} /></span><span className="bar-val">50%</span></div>
+                  <div className="bar-row"><span className="bar-name">Giesen</span><span className="track"><i className="fill" style={{ width: "25%" }} /></span><span className="bar-val">25%</span></div>
+                  <div className="bar-row"><span className="bar-name">Zeronimo</span><span className="track"><i className="fill" style={{ width: "25%" }} /></span><span className="bar-val">25%</span></div>
+                  <div className="bar-row"><span className="bar-name self">Acme Wines <span className="self">◀ you</span></span><span className="track"><i className="fill muted" style={{ width: "3%" }} /></span><span className="bar-val">0%</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-4 text-sm">
-          <span className="font-medium">{t.enginesLabel}</span>
-          {ENGINES.map((e) => (
-            <label key={e.id} className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={engines[e.id]}
-                onChange={(ev) => setEngines((s) => ({ ...s, [e.id]: ev.target.checked }))}
-              />
-              {e.label}
-            </label>
-          ))}
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={classify} onChange={(e) => setClassify(e.target.checked)} />
-            {t.classifyLabel}
-          </label>
-        </div>
-
-        <button
-          onClick={analyze}
-          disabled={loading}
-          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
-        >
-          {loading ? t.analyzing : t.analyze}
-        </button>
       </section>
 
-      {error && (
-        <p className="mt-6 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
-          ⚠️ {error}
-        </p>
-      )}
+      {/* HOOK STATS */}
+      <section className="band hook">
+        <div className="wrap">
+          <div className="g">
+            <div className="stat rv"><div className="n">60%</div><div className="t">of Google searches now end without a click — AI answers for them.</div></div>
+            <div className="stat rv d1"><div className="n">#1</div><div className="t">The first brand AI names captures the lion&apos;s share of conversions.</div></div>
+            <div className="stat rv d2"><div className="n">0</div><div className="t">tools — that&apos;s what the typical brand uses to track what AI says about them. They&apos;re flying blind.</div></div>
+          </div>
+        </div>
+      </section>
 
-      {result && (
-        <section className="mt-8 space-y-6">
-          <div className="flex flex-wrap gap-2 text-xs">
-            {result.perEngine.map((e) => (
-              <span
-                key={e.engine}
-                className={`rounded-full px-2.5 py-1 ${
-                  e.error ? "bg-red-500/15 text-red-600 dark:text-red-400" : "bg-black/5 dark:bg-white/10"
-                }`}
+      {/* WHAT YOU LEARN */}
+      <section className="band" id="what">
+        <div className="wrap">
+          <div className="sec-head rv">
+            <span className="eyebrow">Results</span>
+            <h2>What can this dashboard tell you?</h2>
+            <p>Not vague “AI marketing.” Four concrete numbers, returned to you.</p>
+          </div>
+          <div className="cards">
+            <div className="ocard rv">
+              <div className="ic">📊</div>
+              <h3>Share of Voice</h3>
+              <p>How often your brand appears in AI answers versus competitors, as a percentage — your real share of the conversation.</p>
+              <div className="mini">
+                <div className="mini-bar"><span>You</span><span className="t"><i style={{ width: "22%" }} /></span><span>22%</span></div>
+                <div className="mini-bar"><span>Top</span><span className="t"><i style={{ width: "50%" }} /></span><span>50%</span></div>
+              </div>
+            </div>
+            <div className="ocard rv d1">
+              <div className="ic">🏅</div>
+              <h3>Recommendation rank</h3>
+              <p>Where AI names you when it lists brands. #1 and #4 are completely different worlds for conversion.</p>
+              <div className="mini">
+                <div className="mini-bar mono"><span>ChatGPT</span><span className="t"><i style={{ width: "100%" }} /></span><span>#1</span></div>
+                <div className="mini-bar mono"><span>Perplexity</span><span className="t"><i style={{ width: "40%" }} /></span><span>#4</span></div>
+              </div>
+            </div>
+            <div className="ocard rv d2">
+              <div className="ic">✨</div>
+              <h3>Conversion citations <span className="star">Only on Trustela</span></h3>
+              <p>Not just a mention — we classify whether a citation actually makes people want to buy. We separate name-drops from real recommendations.</p>
+              <div className="mini"><div className="mini-bar"><span style={{ color: "var(--up)" }}>● Conversion</span> <span style={{ color: "var(--ink-3)" }}>Neutral</span> <span style={{ color: "var(--down)" }}>Negative</span></div></div>
+            </div>
+            <div className="ocard rv d3">
+              <div className="ic">📈</div>
+              <h3>Trend over time</h3>
+              <p>Whether you&apos;re improving week over week — proof that your content and PR turned into real AI visibility.</p>
+              <div className="mini"><div className="mini-bar"><span>4 wks ago</span><span className="t"><i style={{ width: "8%" }} /></span><span>now</span><span className="t"><i style={{ width: "46%" }} /></span></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section className="band hook" id="how">
+        <div className="wrap">
+          <div className="sec-head rv">
+            <span className="eyebrow">How it works</span>
+            <h2>Three steps, done in minutes</h2>
+          </div>
+          <div className="steps">
+            <div className="step rv"><div className="num">1</div><h3>Add a prompt</h3><p>Enter a question your customers might ask AI — like “recommend an alcohol-free wine.”</p></div>
+            <div className="step rv d1"><div className="num">2</div><h3>Run AI automatically</h3><p>We actually query ChatGPT and Perplexity, then collect their answers and citations.</p></div>
+            <div className="step rv d2"><div className="num">3</div><h3>Read the results</h3><p>SoV, rank, conversion citations, and trend in one dashboard. You&apos;ll see exactly what to fix.</p></div>
+          </div>
+        </div>
+      </section>
+
+      {/* TRY IT — real tool */}
+      <section className="band" id="try">
+        <div className="wrap">
+          <div className="sec-head rv">
+            <span className="eyebrow">Try it now</span>
+            <h2>Run it on your own brand</h2>
+            <p>Just enter a prompt and your brands. No credit card, no signup.</p>
+          </div>
+
+          <div className="toolcard rv d1">
+            <div className="field">
+              <label className="field-label">Prompt <span className="hint">(what a shopper asks the AI)</span></label>
+              <textarea className="textarea" rows={2} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+            </div>
+            <div className="grid2">
+              <div className="field">
+                <label className="field-label">Your brand</label>
+                <input className="input" value={selfName} onChange={(e) => setSelfName(e.target.value)} />
+              </div>
+              <div className="field">
+                <label className="field-label">Competitors <span className="hint">(comma-separated)</span></label>
+                <input className="input" value={competitors} onChange={(e) => setCompetitors(e.target.value)} />
+              </div>
+            </div>
+            <div className="engines-pick">
+              <span className="lab">Engines:</span>
+              {ENGINES.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  className={`chip ${engines[e.id] ? "on" : ""}`}
+                  onClick={() => toggleEngine(e.id)}
+                >
+                  <span className="tick">✓</span>{e.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                className={`chip ${classify ? "on" : ""}`}
+                onClick={() => setClassify((c) => !c)}
               >
-                {e.error ? `⚠️ ${e.engine}` : `✓ ${e.engine} · ${e.model} · 인용 ${e.citations.length}`}
-              </span>
-            ))}
+                <span className="tick">✓</span>Conversion citations
+              </button>
+            </div>
+            <div className="tool-actions">
+              <button className="btn btn-primary btn-lg" onClick={analyze} disabled={loading}>
+                {loading ? "Analyzing… (may take a while)" : "Analyze →"}
+              </button>
+            </div>
           </div>
 
-          <div>
-            <h2 className="mb-2 text-sm font-semibold opacity-70">{t.shareOfVoiceTitle}</h2>
-            <div className="space-y-1.5">
-              {sortedBrands.map((id) => {
-                const sov = result.shareOfVoice[id];
-                const isSelf = id === result.self.brandId;
-                return (
-                  <div key={id} className="flex items-center gap-3 text-sm">
-                    <span className={`w-40 shrink-0 truncate ${isSelf ? "font-semibold" : ""}`}>
-                      {brandNames.get(id) ?? id}
-                      {isSelf && <span className="ml-1 text-xs opacity-60">{t.selfBadge}</span>}
-                    </span>
-                    <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-                      <span
-                        className="block h-full rounded-full bg-foreground"
-                        style={{ width: `${Math.round(sov * 100)}%` }}
-                      />
-                    </span>
-                    <span className="w-16 shrink-0 text-right tabular-nums">
-                      {Math.round(sov * 100)}% · {result.mentionCounts[id]}
-                    </span>
+          {error && <p className="error-box">⚠️ {error}</p>}
+
+          {result && (
+            <div className="result-block">
+              <div className="engine-pills">
+                {result.perEngine.map((e) => (
+                  <span key={e.engine} className={`epill ${e.error ? "err" : ""}`}>
+                    {e.error ? `⚠️ ${e.engine}` : `✓ ${e.engine} · ${e.model} · ${e.citations.length} citations`}
+                  </span>
+                ))}
+              </div>
+
+              <div className="res-card">
+                <div className="barlab">Share of Voice</div>
+                {sortedBrands.map((id) => {
+                  const sov = result.shareOfVoice[id];
+                  const isSelf = id === result.self.brandId;
+                  return (
+                    <div key={id} className="bar-row">
+                      <span className={`bar-name ${isSelf ? "self" : ""}`}>
+                        {brandNames.get(id) ?? id}
+                        {isSelf && <span className="self"> ◀ you</span>}
+                      </span>
+                      <span className="track"><i className={`fill ${sov === 0 ? "muted" : ""}`} style={{ width: `${Math.max(Math.round(sov * 100), 2)}%` }} /></span>
+                      <span className="bar-val">{Math.round(sov * 100)}% · {result.mentionCounts[id]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {history.length > 0 && (
+                <div className="res-card">
+                  <div className="barlab">Share of Voice over time</div>
+                  <SovTimeline
+                    points={history}
+                    brandNames={brandNames}
+                    selfBrandId={result.self.brandId}
+                    needMoreLabel="Run this prompt again later to see the trend."
+                  />
+                </div>
+              )}
+
+              {classify && (
+                <div className="res-card">
+                  <div className="barlab">Conversion citation analysis</div>
+                  <div className="cls-wrap">
+                    {result.perEngine
+                      .filter((e) => !e.error)
+                      .map((e) => {
+                        const classified = e.mentions.filter(
+                          (m) => m.mentioned && "citationClass" in m,
+                        ) as Classifiedish[];
+                        if (classified.length === 0) return null;
+                        return (
+                          <div key={e.engine}>
+                            <div className="cls-eng">{e.engine}</div>
+                            <div className="cls-pills">
+                              {classified.map((m) => (
+                                <span key={m.brandId} className={`cpill ${m.citationClass ?? "neutral"}`}>
+                                  {brandNames.get(m.brandId) ?? m.brandId}: {m.citationClass}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </div>
+              )}
 
-          {history.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-sm font-semibold opacity-70">{t.timelineTitle}</h2>
-              <SovTimeline
-                points={history}
-                brandNames={brandNames}
-                selfBrandId={result.self.brandId}
-                needMoreLabel={t.timelineNeedMore}
-              />
-            </div>
-          )}
-
-          {classify && (
-            <div>
-              <h2 className="mb-2 text-sm font-semibold opacity-70">{t.classificationTitle}</h2>
-              <div className="space-y-3">
-                {result.perEngine
-                  .filter((e) => !e.error)
-                  .map((e) => {
-                    const classified = e.mentions.filter(
-                      (m) => m.mentioned && "citationClass" in m,
-                    ) as Classifiedish[];
-                    if (classified.length === 0) return null;
-                    return (
-                      <div key={e.engine}>
-                        <p className="mb-1 text-xs font-medium opacity-60">{e.engine}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {classified.map((m) => (
-                            <span
-                              key={m.brandId}
-                              className={`rounded-full px-2.5 py-1 text-xs ${
-                                classColor[m.citationClass ?? "neutral"] ?? classColor.neutral
-                              }`}
-                              title={m.confidence ? `신뢰도 ${m.confidence}` : undefined}
-                            >
-                              {brandNames.get(m.brandId) ?? m.brandId}: {m.citationClass}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="callout">
+                🏆 Top brand: <b>{result.topBrandId ? brandNames.get(result.topBrandId) ?? result.topBrandId : "none"}</b>
+                {" · "}📉 You (<b>{brandNames.get(result.self.brandId) ?? result.self.brandId}</b>): SoV{" "}
+                <b>{Math.round(result.self.shareOfVoice * 100)}%</b> · mentioned in {result.self.mentionedInEngines}/
+                {result.perEngine.length} engines · best rank {result.self.bestRank ?? "not shown"}
               </div>
             </div>
           )}
+        </div>
+      </section>
 
-          <div className="rounded-lg bg-black/5 dark:bg-white/5 p-4 text-sm">
-            <p>
-              🏆 {t.topBrandLabel}:{" "}
-              <b>{result.topBrandId ? brandNames.get(result.topBrandId) ?? result.topBrandId : t.none}</b>
-            </p>
-            <p className="mt-1">
-              📉 {t.selfWord} <b>{brandNames.get(result.self.brandId) ?? result.self.brandId}</b>: {t.sovWord}{" "}
-              <b>{Math.round(result.self.shareOfVoice * 100)}%</b> · {result.self.mentionedInEngines}/
-              {result.perEngine.length} {t.enginesMentioned} · {t.bestRank} {result.self.bestRank ?? t.notShown}
-            </p>
+      {/* REAL RESULTS (placeholder) */}
+      <section className="results-band" id="results">
+        <div className="wrap">
+          <div className="sec-head rv">
+            <span className="badge-soon">● Coming soon</span>
+            <span className="eyebrow" style={{ display: "block" }}>Real results</span>
+            <h2>How brands using Trustela did</h2>
+            <p>Once customer data accumulates, we&apos;ll post anonymized, real improvements here. Below is an example of what that will look like.</p>
           </div>
-        </section>
-      )}
-    </main>
+          <div className="rcards">
+            <div className="rcard rv"><span className="ex">Example</span><div className="big"><span className="u">+38%</span></div><div className="cap">Share of Voice in 8 weeks — from invisible to #2 in the market.</div><div className="who">— Alcohol-free beverage brand</div></div>
+            <div className="rcard rv d1"><span className="ex">Example</span><div className="big">0 → <span className="u">#1</span></div><div className="cap">Became the first recommended brand across all three engines.</div><div className="who">— Skincare D2C</div></div>
+            <div className="rcard rv d2"><span className="ex">Example</span><div className="big"><span className="u">2×</span></div><div className="cap">Doubled conversion citations — from mentions to real recommendations.</div><div className="who">— Home fragrance</div></div>
+          </div>
+          <p className="note">* The numbers above are examples, not real customer data. They&apos;ll be replaced with real results from beta brands soon.</p>
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section className="band" id="pricing">
+        <div className="wrap">
+          <div className="sec-head rv">
+            <span className="eyebrow">Pricing</span>
+            <h2>Start without the commitment</h2>
+            <p>Enter at half the price of the competition. Scale up when you need to.</p>
+          </div>
+          <div className="prices">
+            <div className="price rv">
+              <div className="pn">Starter</div>
+              <div className="pp">$39<span className="per">/mo</span></div>
+              <ul><li>10 prompts</li><li>ChatGPT + Perplexity</li><li>Weekly auto-runs</li><li>SoV &amp; rank tracking</li></ul>
+              <a className="btn btn-ghost" href="#try">Get started</a>
+            </div>
+            <div className="price feat rv d1">
+              <div className="feat-tag">Most popular</div>
+              <div className="pn">Growth</div>
+              <div className="pp">$99<span className="per">/mo</span></div>
+              <ul><li>50 prompts</li><li>All engines + Gemini</li><li>Conversion citation analysis</li><li>Time-series charts</li><li>5 competitors</li></ul>
+              <a className="btn btn-primary" href="#try">Get started</a>
+            </div>
+            <div className="price rv d2">
+              <div className="pn">Pro</div>
+              <div className="pp">$199<span className="per">/mo</span></div>
+              <ul><li>Unlimited prompts</li><li>Daily auto-runs</li><li>API access</li><li>Review-trust certification (add-on)</li></ul>
+              <a className="btn btn-ghost" href="#try">Contact us</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section className="final">
+        <div className="wrap">
+          <h2 className="rv">See whether AI recommends you — right now</h2>
+          <p className="rv d1">Your first analysis is free. Once you see the results, what to fix becomes obvious.</p>
+          <div className="cta-row rv d2"><a className="btn btn-primary btn-lg" href="#try">Start free analysis →</a></div>
+        </div>
+      </section>
+
+      <footer>
+        <div className="wrap">
+          <div className="row">
+            <div className="brand" style={{ fontSize: "16px" }}><span className="logo">🍷</span> Trustela</div>
+            <div>AI search visibility + review trust · © 2026</div>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
