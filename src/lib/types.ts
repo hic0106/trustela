@@ -16,12 +16,24 @@ export interface Prompt {
   text: string;
 }
 
-/** 한 엔진에 프롬프트를 1회 실행한 원본 결과. */
+/** 엔진 커넥터가 프롬프트 1회 실행으로 돌려주는 결과. */
+export interface EngineResult {
+  engine: EngineId;
+  /** 실제 호출된 모델명 (예: "sonar", "gpt-4o"). */
+  model: string;
+  /** 합성된 답변 텍스트. */
+  text: string;
+  /** 답변이 참조한 출처 URL들 (없으면 빈 배열). */
+  citations: string[];
+}
+
+/** 한 엔진에 프롬프트를 1회 실행한 원본 결과(저장용). */
 export interface EngineRun {
   promptId: string;
   engine: EngineId;
   runAt: string; // ISO8601
   rawResponse: string;
+  citations: string[];
 }
 
 /** 응답에서 특정 브랜드의 언급 여부/위치. */
