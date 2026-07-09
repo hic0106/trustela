@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AnalysisResult, EngineId, Mention, HistoryPoint } from "@/lib/types";
+import type { AnalysisResult, EngineId, Mention, HistoryPoint, TrackedPrompt } from "@/lib/types";
 import { SovTimeline } from "@/components/SovTimeline";
 
 type Classifiedish = Mention & { citationClass?: string; confidence?: number };
@@ -34,6 +34,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [tracked, setTracked] = useState<TrackedPrompt[]>([]);
+  const [trackBusy, setTrackBusy] = useState(false);
 
   // Scroll-reveal for marketing blocks. Content is visible by default; we only
   // arm the animation once JS is running, and always guarantee reveal via a
@@ -123,6 +125,58 @@ export default function Home() {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadTracked() {
+    try {
+      const res = await fetch("/api/tracked");
+      if (res.ok) {
+        const data = await res.json();
+        setTracked((data.tracked ?? []) as TrackedPrompt[]);
+      }
+    } catch {
+      // Tracked list is non-critical.
+    }
+  }
+
+  // Load the tracked-prompts list once on mount.
+  useEffect(() => {
+    loadTracked();
+  }, []);
+
+  async function trackCurrent() {
+    setTrackBusy(true);
+    const selfId = slug(selfName, "self");
+    const brands = [
+      { id: selfId, name: selfName.trim(), aliases: [] as string[] },
+      ...competitors
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean)
+        .map((name, i) => ({ id: slug(name, `brand-${i}`), name, aliases: [] as string[] })),
+    ];
+    const selectedEngines = ENGINES.filter((e) => engines[e.id]).map((e) => e.id);
+    try {
+      const res = await fetch("/api/tracked", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, selfBrandId: selfId, brands, engines: selectedEngines, classify }),
+      });
+      if (res.ok) await loadTracked();
+    } catch {
+      // ignore
+    } finally {
+      setTrackBusy(false);
+    }
+  }
+
+  async function removeTracked(id: string) {
+    try {
+      const res = await fetch(`/api/tracked?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) setTracked((t) => t.filter((x) => x.id !== id));
+    } catch {
+      // ignore
     }
   }
 
@@ -321,8 +375,34 @@ export default function Home() {
               <button className="btn btn-primary btn-lg" onClick={analyze} disabled={loading}>
                 {loading ? "Analyzing… (may take a while)" : "Analyze →"}
               </button>
+              <button className="btn btn-ghost btn-lg" onClick={trackCurrent} disabled={trackBusy}>
+                {trackBusy ? "Adding…" : "＋ Auto-run daily"}
+              </button>
             </div>
           </div>
+
+          {tracked.length > 0 && (
+            <div className="tracked">
+              <div className="tracked-head">
+                <span className="barlab" style={{ margin: 0 }}>Auto-run schedule</span>
+                <span className="tracked-note">Runs automatically every day · fills your trend chart</span>
+              </div>
+              <ul className="tracked-list">
+                {tracked.map((t) => (
+                  <li key={t.id} className="tracked-item">
+                    <div className="tracked-main">
+                      <span className="tracked-prompt">{t.prompt}</span>
+                      <span className="tracked-meta">
+                        {t.engines.join(" · ")}
+                        {t.lastRunAt ? ` · last run ${new Date(t.lastRunAt).toLocaleDateString()}` : " · not run yet"}
+                      </span>
+                    </div>
+                    <button className="tracked-remove" onClick={() => removeTracked(t.id)} aria-label="Remove">✕</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {error && <p className="error-box">⚠️ {error}</p>}
 

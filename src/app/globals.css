@@ -189,7 +189,19 @@ body {
 .tl .chip.on { background:var(--wine-soft); color:var(--wine); border-color:color-mix(in srgb, var(--wine) 40%, transparent); font-weight:600; }
 .tl .chip .tick { opacity:0; }
 .tl .chip.on .tick { opacity:1; }
-.tl .tool-actions { margin-top:20px; }
+.tl .tool-actions { margin-top:20px; display:flex; gap:12px; flex-wrap:wrap; }
+
+/* tracked prompts (scheduler) */
+.tl .tracked { max-width:760px; margin:20px auto 0; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:20px 22px; box-shadow:var(--shadow-sm); }
+.tl .tracked-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.tl .tracked-note { font-size:12px; color:var(--ink-3); }
+.tl .tracked-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+.tl .tracked-item { display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--bg-2); border:1px solid var(--line); border-radius:12px; }
+.tl .tracked-main { display:flex; flex-direction:column; gap:3px; min-width:0; flex:1; }
+.tl .tracked-prompt { font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tl .tracked-meta { font-size:12px; color:var(--ink-3); font-family:var(--font-geist-mono), ui-monospace, monospace; }
+.tl .tracked-remove { flex-shrink:0; font:inherit; font-size:13px; line-height:1; border:1px solid var(--line); background:var(--surface); color:var(--ink-3); border-radius:8px; width:30px; height:30px; cursor:pointer; transition:color .15s, border-color .15s; }
+.tl .tracked-remove:hover { color:var(--down); border-color:var(--down); }
 
 /* results (real) */
 .tl .result-block { max-width:760px; margin:26px auto 0; display:flex; flex-direction:column; gap:24px; }

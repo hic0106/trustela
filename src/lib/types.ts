@@ -84,6 +84,18 @@ export interface HistoryPoint {
   shareOfVoice: Record<string, number>;
 }
 
+/** 스케줄러가 정기적으로 자동 실행할 등록된 프롬프트. */
+export interface TrackedPrompt {
+  id: string;
+  prompt: string;
+  selfBrandId: string;
+  brands: Brand[];
+  engines: EngineId[];
+  classify: boolean;
+  active: boolean;
+  lastRunAt: string | null;
+}
+
 /** 전환형 인용 분류 라벨 (PRD E5 차별화 기능). */
 export type CitationClass = "conversion" | "neutral" | "negative";
 
