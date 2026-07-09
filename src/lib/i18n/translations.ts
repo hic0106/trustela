@@ -23,6 +23,8 @@ export interface Strings {
   analyze: string;
   analyzing: string;
   shareOfVoiceTitle: string;
+  timelineTitle: string;
+  timelineNeedMore: string;
   classificationTitle: string;
   selfBadge: string;
   topBrandLabel: string;
@@ -48,6 +50,8 @@ export const translations: Record<Locale, Strings> = {
     analyze: "Analyze",
     analyzing: "Analyzing… (may take a while)",
     shareOfVoiceTitle: "Share of Voice",
+    timelineTitle: "Share of Voice over time",
+    timelineNeedMore: "Run this prompt again later to see the trend.",
     classificationTitle: "Conversion citation analysis",
     selfBadge: "◀ you",
     topBrandLabel: "Top brand",
@@ -70,6 +74,8 @@ export const translations: Record<Locale, Strings> = {
     analyze: "분석하기",
     analyzing: "분석 중… (수십 초)",
     shareOfVoiceTitle: "Share of Voice",
+    timelineTitle: "시간별 Share of Voice",
+    timelineNeedMore: "나중에 같은 프롬프트를 다시 실행하면 추이가 표시됩니다.",
     classificationTitle: "전환형 인용 분류",
     selfBadge: "◀ 자사",
     topBrandLabel: "1위 브랜드",
@@ -93,6 +99,8 @@ export const translations: Record<Locale, Strings> = {
     analyze: "分析する",
     analyzing: "分析中…（数十秒）",
     shareOfVoiceTitle: "シェア・オブ・ボイス",
+    timelineTitle: "時系列のシェア・オブ・ボイス",
+    timelineNeedMore: "同じプロンプトを後で再実行すると推移が表示されます。",
     classificationTitle: "コンバージョン引用の分類",
     selfBadge: "◀ 自社",
     topBrandLabel: "1位ブランド",
@@ -115,6 +123,8 @@ export const translations: Record<Locale, Strings> = {
     analyze: "开始分析",
     analyzing: "分析中…（可能需要数十秒）",
     shareOfVoiceTitle: "声量占比",
+    timelineTitle: "声量占比时间趋势",
+    timelineNeedMore: "稍后再次运行相同提示词即可查看趋势。",
     classificationTitle: "转化引用分类",
     selfBadge: "◀ 自有",
     topBrandLabel: "第一品牌",

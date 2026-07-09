@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { AnalysisResult, EngineId, Mention } from "@/lib/types";
+import type { AnalysisResult, EngineId, Mention, HistoryPoint } from "@/lib/types";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { LOCALES } from "@/lib/i18n/translations";
+import { SovTimeline } from "@/components/SovTimeline";
 
 type Classifiedish = Mention & { citationClass?: string; confidence?: number };
 
@@ -41,6 +42,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
 
   // brandId → name 매핑 (result 엔 name 이 없으니 입력에서 재구성).
   function buildBrandNames(): Map<string, string> {
@@ -58,6 +60,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setHistory([]);
 
     const selfId = slug(selfName, "self");
     const brands = [
@@ -79,6 +82,17 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.requestFailed(res.status));
       setResult(data as AnalysisResult);
+
+      // 방금 저장된 실행을 포함해 이 프롬프트의 시계열을 불러온다(실패해도 무시).
+      try {
+        const hres = await fetch(`/api/history?prompt=${encodeURIComponent(prompt)}`);
+        if (hres.ok) {
+          const hdata = await hres.json();
+          setHistory((hdata.points ?? []) as HistoryPoint[]);
+        }
+      } catch {
+        // 히스토리는 부가 기능 — 실패해도 분석 결과는 유지.
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -221,6 +235,18 @@ export default function Home() {
               })}
             </div>
           </div>
+
+          {history.length > 0 && (
+            <div>
+              <h2 className="mb-2 text-sm font-semibold opacity-70">{t.timelineTitle}</h2>
+              <SovTimeline
+                points={history}
+                brandNames={brandNames}
+                selfBrandId={result.self.brandId}
+                needMoreLabel={t.timelineNeedMore}
+              />
+            </div>
+          )}
 
           {classify && (
             <div>

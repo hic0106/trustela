@@ -77,6 +77,13 @@ export interface AnalysisResult {
   };
 }
 
+/** 시계열 그래프용 한 시점의 SoV 스냅샷. */
+export interface HistoryPoint {
+  runAt: string; // ISO8601
+  /** 브랜드별 Share of Voice (0..1). */
+  shareOfVoice: Record<string, number>;
+}
+
 /** 전환형 인용 분류 라벨 (PRD E5 차별화 기능). */
 export type CitationClass = "conversion" | "neutral" | "negative";
 
