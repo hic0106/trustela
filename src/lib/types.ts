@@ -46,6 +46,37 @@ export interface Mention {
   sourceUrl?: string;
 }
 
+/** 한 엔진에 대한 분석 결과 (프롬프트 1회 실행 → 언급 탐지까지). */
+export interface EngineAnalysis {
+  engine: EngineId;
+  model: string;
+  mentions: Mention[];
+  citations: string[];
+  /** 엔진 호출이 실패했으면 사유(그래도 전체 분석은 계속 진행). */
+  error?: string;
+}
+
+/** 프롬프트 하나를 여러 엔진에 돌린 통합 분석 결과. */
+export interface AnalysisResult {
+  prompt: string;
+  runAt: string; // ISO8601
+  perEngine: EngineAnalysis[];
+  /** 브랜드별 언급 엔진 수. */
+  mentionCounts: Record<string, number>;
+  /** 브랜드별 Share of Voice (0..1). */
+  shareOfVoice: Record<string, number>;
+  /** SoV 최상위 브랜드(동률이면 먼저 등록된 것). 아무도 언급 안 되면 null. */
+  topBrandId: string | null;
+  /** 자사 브랜드 요약. */
+  self: {
+    brandId: string;
+    mentionedInEngines: number;
+    shareOfVoice: number;
+    /** 엔진 통틀어 가장 높은(작은) 순위. 미언급이면 null. */
+    bestRank: number | null;
+  };
+}
+
 /** 전환형 인용 분류 라벨 (PRD E5 차별화 기능). */
 export type CitationClass = "conversion" | "neutral" | "negative";
 
