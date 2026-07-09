@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:engines": "tsx scripts/test-engines.ts"
+    "test:engines": "tsx scripts/test-engines.ts",
+    "test:parser": "tsx scripts/test-parser.ts"
   },
   "dependencies": {
     "next": "16.2.10",
