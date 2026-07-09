@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import { getConnector } from "../engines/connector";
 import { detectMentions } from "../parsing/detectMentions";
+import { classifyCitation } from "../scoring/classifyCitation";
 import { shareOfVoice } from "../metrics/shareOfVoice";
 
 export interface AnalysisInput {
@@ -19,6 +20,8 @@ export interface AnalysisInput {
   selfBrandId: string;
   /** 실행할 엔진들. */
   engines: EngineId[];
+  /** true 면 언급된 브랜드를 전환형 인용으로 분류(추가 LLM 비용 발생). */
+  classify?: boolean;
 }
 
 /** 한 엔진을 실행하고 언급까지 탐지. 실패해도 error 로 담아 반환(전체는 계속). */
@@ -28,12 +31,25 @@ async function analyzeEngine(
 ): Promise<EngineAnalysis> {
   try {
     const result = await getConnector(engine).run(input.prompt);
-    return {
-      engine,
-      model: result.model,
-      mentions: detectMentions(result.text, input.brands, result.citations),
-      citations: result.citations,
-    };
+    let mentions = detectMentions(result.text, input.brands, result.citations);
+
+    if (input.classify) {
+      const brandById = new Map(input.brands.map((b) => [b.id, b]));
+      mentions = await Promise.all(
+        mentions.map(async (m) => {
+          if (!m.mentioned) return m;
+          const brand = brandById.get(m.brandId);
+          if (!brand) return m;
+          try {
+            return await classifyCitation(result.text, brand, m);
+          } catch {
+            return m; // 분류 실패는 치명적이지 않다 — 원래 언급만 유지.
+          }
+        }),
+      );
+    }
+
+    return { engine, model: result.model, mentions, citations: result.citations };
   } catch (err) {
     return {
       engine,

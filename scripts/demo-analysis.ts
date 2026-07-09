@@ -32,11 +32,14 @@ async function main() {
     { id: "ariel", name: "Ariel", aliases: [] },
   ];
 
+  // CLASSIFY=1 로 실행하면 전환형 인용 분류까지 켠다(추가 LLM 비용).
+  const classify = process.env.CLASSIFY === "1";
   const result = await runPromptAnalysis({
     prompt: "What are the best alcohol-free wine brands?",
     brands,
     selfBrandId: "acme",
     engines: ["chatgpt", "perplexity"],
+    classify,
   });
 
   console.log(`\n📊 프롬프트: "${result.prompt}"`);
@@ -60,6 +63,21 @@ async function main() {
     console.log(
       `${name[b.id].padEnd(16)} ${sov.padStart(5)}   ${String(cnt).padStart(4)}${isSelf}`,
     );
+  }
+
+  if (classify) {
+    console.log("\n── 전환형 인용 분류 ──");
+    for (const ea of result.perEngine) {
+      const classified = ea.mentions.filter(
+        (m) => m.mentioned && "citationClass" in m,
+      );
+      if (classified.length === 0) continue;
+      console.log(`  [${ea.engine}]`);
+      for (const m of classified) {
+        const c = m as typeof m & { citationClass: string; confidence: number };
+        console.log(`    ${name[m.brandId].padEnd(12)} ${c.citationClass} (${c.confidence})`);
+      }
+    }
   }
 
   console.log("\n── 요약 ──");
