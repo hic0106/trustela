@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { AnalysisResult, EngineId, Mention } from "@/lib/types";
+import { useTranslation } from "@/lib/i18n/useTranslation";
+import { LOCALES } from "@/lib/i18n/translations";
 
 type Classifiedish = Mention & { citationClass?: string; confidence?: number };
 
@@ -26,6 +28,7 @@ const classColor: Record<string, string> = {
 };
 
 export default function Home() {
+  const { locale, setLocale, t } = useTranslation();
   const [prompt, setPrompt] = useState("What are the best alcohol-free wine brands?");
   const [selfName, setSelfName] = useState("Acme Wines");
   const [competitors, setCompetitors] = useState("Noughty, Giesen, Zeronimo, Ariel");
@@ -74,7 +77,7 @@ export default function Home() {
         body: JSON.stringify({ prompt, brands, selfBrandId: selfId, engines: selectedEngines, classify }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `요청 실패 (${res.status})`);
+      if (!res.ok) throw new Error(data.error ?? t.requestFailed(res.status));
       setResult(data as AnalysisResult);
     } catch (err) {
       setError((err as Error).message);
@@ -92,16 +95,28 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Trustela</h1>
-        <p className="mt-1 text-sm opacity-70">
-          AI 검색이 당신 브랜드를 추천하는지 측정하세요 — SoV·순위·전환형 인용.
-        </p>
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Trustela</h1>
+          <p className="mt-1 text-sm opacity-70">{t.tagline}</p>
+        </div>
+        <select
+          value={locale}
+          onChange={(e) => setLocale(e.target.value as typeof locale)}
+          aria-label="Language"
+          className="shrink-0 rounded-lg border border-black/15 dark:border-white/20 bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-black/40 dark:focus:border-white/50"
+        >
+          {LOCALES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.label}
+            </option>
+          ))}
+        </select>
       </header>
 
       <section className="space-y-4 rounded-xl border border-black/10 dark:border-white/15 p-5">
         <label className="block">
-          <span className="text-sm font-medium">프롬프트 (쇼핑객이 AI에 묻는 질문)</span>
+          <span className="text-sm font-medium">{t.promptLabel}</span>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -112,7 +127,7 @@ export default function Home() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
-            <span className="text-sm font-medium">자사 브랜드</span>
+            <span className="text-sm font-medium">{t.selfBrandLabel}</span>
             <input
               value={selfName}
               onChange={(e) => setSelfName(e.target.value)}
@@ -120,7 +135,10 @@ export default function Home() {
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium">경쟁사 (쉼표로 구분)</span>
+            <span className="text-sm font-medium">
+              {t.competitorsLabel}{" "}
+              <span className="opacity-60">({t.competitorsHint})</span>
+            </span>
             <input
               value={competitors}
               onChange={(e) => setCompetitors(e.target.value)}
@@ -130,7 +148,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4 text-sm">
-          <span className="font-medium">엔진:</span>
+          <span className="font-medium">{t.enginesLabel}</span>
           {ENGINES.map((e) => (
             <label key={e.id} className="flex items-center gap-1.5">
               <input
@@ -143,7 +161,7 @@ export default function Home() {
           ))}
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={classify} onChange={(e) => setClassify(e.target.checked)} />
-            전환형 인용 분류
+            {t.classifyLabel}
           </label>
         </div>
 
@@ -152,7 +170,7 @@ export default function Home() {
           disabled={loading}
           className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
         >
-          {loading ? "분석 중… (수십 초)" : "분석하기"}
+          {loading ? t.analyzing : t.analyze}
         </button>
       </section>
 
@@ -178,7 +196,7 @@ export default function Home() {
           </div>
 
           <div>
-            <h2 className="mb-2 text-sm font-semibold opacity-70">Share of Voice</h2>
+            <h2 className="mb-2 text-sm font-semibold opacity-70">{t.shareOfVoiceTitle}</h2>
             <div className="space-y-1.5">
               {sortedBrands.map((id) => {
                 const sov = result.shareOfVoice[id];
@@ -187,7 +205,7 @@ export default function Home() {
                   <div key={id} className="flex items-center gap-3 text-sm">
                     <span className={`w-40 shrink-0 truncate ${isSelf ? "font-semibold" : ""}`}>
                       {brandNames.get(id) ?? id}
-                      {isSelf && <span className="ml-1 text-xs opacity-60">◀ 자사</span>}
+                      {isSelf && <span className="ml-1 text-xs opacity-60">{t.selfBadge}</span>}
                     </span>
                     <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
                       <span
@@ -206,7 +224,7 @@ export default function Home() {
 
           {classify && (
             <div>
-              <h2 className="mb-2 text-sm font-semibold opacity-70">전환형 인용 분류</h2>
+              <h2 className="mb-2 text-sm font-semibold opacity-70">{t.classificationTitle}</h2>
               <div className="space-y-3">
                 {result.perEngine
                   .filter((e) => !e.error)
@@ -240,13 +258,13 @@ export default function Home() {
 
           <div className="rounded-lg bg-black/5 dark:bg-white/5 p-4 text-sm">
             <p>
-              🏆 1위 브랜드:{" "}
-              <b>{result.topBrandId ? brandNames.get(result.topBrandId) ?? result.topBrandId : "없음"}</b>
+              🏆 {t.topBrandLabel}:{" "}
+              <b>{result.topBrandId ? brandNames.get(result.topBrandId) ?? result.topBrandId : t.none}</b>
             </p>
             <p className="mt-1">
-              📉 자사 <b>{brandNames.get(result.self.brandId) ?? result.self.brandId}</b>: SoV{" "}
+              📉 {t.selfWord} <b>{brandNames.get(result.self.brandId) ?? result.self.brandId}</b>: {t.sovWord}{" "}
               <b>{Math.round(result.self.shareOfVoice * 100)}%</b> · {result.self.mentionedInEngines}/
-              {result.perEngine.length} 엔진 언급 · 최고순위 {result.self.bestRank ?? "미노출"}
+              {result.perEngine.length} {t.enginesMentioned} · {t.bestRank} {result.self.bestRank ?? t.notShown}
             </p>
           </div>
         </section>
