@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { AnalysisResult, EngineId, Mention, HistoryPoint, TrackedPrompt } from "@/lib/types";
 import { SovTimeline } from "@/components/SovTimeline";
+import AuthNav from "@/components/AuthNav";
 
 type Classifiedish = Mention & { citationClass?: string; confidence?: number };
 
@@ -32,6 +33,7 @@ export default function Home() {
   const [classify, setClassify] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gated, setGated] = useState(false); // 익명 무료 1회 소진 → 로그인 유도
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [tracked, setTracked] = useState<TrackedPrompt[]>([]);
@@ -88,6 +90,7 @@ export default function Home() {
   async function analyze() {
     setLoading(true);
     setError(null);
+    setGated(false);
     setResult(null);
     setHistory([]);
 
@@ -109,6 +112,10 @@ export default function Home() {
         body: JSON.stringify({ prompt, brands, selfBrandId: selfId, engines: selectedEngines, classify }),
       });
       const data = await res.json();
+      if (res.status === 401 && data.error === "login_required") {
+        setGated(true);
+        return;
+      }
       if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
       setResult(data as AnalysisResult);
 
@@ -163,6 +170,11 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, selfBrandId: selfId, brands, engines: selectedEngines, classify, frequency: "weekly" }),
       });
+      if (res.status === 401) {
+        // 자동 실행 등록은 로그인 필요 → 로그인 페이지로.
+        window.location.href = "/login";
+        return;
+      }
       if (res.ok) await loadTracked();
     } catch {
       // ignore
@@ -204,7 +216,7 @@ export default function Home() {
               <a href="#results">Real results</a>
               <a href="#pricing">Pricing</a>
             </div>
-            <a className="btn btn-primary" href="#try">Start free</a>
+            <AuthNav />
           </div>
         </div>
       </nav>
@@ -401,6 +413,16 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {gated && (
+            <div className="gate-box">
+              <div className="gate-title">That was your free analysis 🎉</div>
+              <p className="gate-sub">
+                Create a free account to keep analyzing, save your results, and track brands over time.
+              </p>
+              <a className="btn btn-primary btn-lg" href="/login">Log in / Sign up to continue →</a>
             </div>
           )}
 

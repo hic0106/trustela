@@ -2,15 +2,19 @@
 //   GET    /api/tracked         → 등록 목록
 //   POST   /api/tracked         → 등록(현재 분석 설정 저장)
 //   DELETE /api/tracked?id=...  → 등록 해제
-import { supabase } from "@/lib/db/supabase";
+import { createClient, getUser } from "@/lib/supabase/server";
 import type { Brand, EngineId, RunFrequency, TrackedPrompt } from "@/lib/types";
 
 const ALLOWED_ENGINES: EngineId[] = ["chatgpt", "perplexity", "gemini"];
 const ALLOWED_FREQUENCIES: RunFrequency[] = ["daily", "weekly"];
 
-// 등록 가능한 활성 프롬프트 총 상한 (Pro 플랜 한도 + 베타 원가 안전장치).
-// 계정/결제가 붙기 전까지는 전역 상한으로 폭주를 막는다. 필요시 env 로 조정.
+// 사용자당 활성 프롬프트 상한 (Pro 플랜 한도 = 200). 유저 스코프 + RLS 라
+// count 는 본인 행만 세므로 자연히 "고객당" 한도가 된다. 필요시 env 로 조정.
 const MAX_ACTIVE_PROMPTS = Number(process.env.MAX_ACTIVE_PROMPTS) || 200;
+
+function unauthorized() {
+  return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
+}
 
 // DB(snake_case) → 클라이언트(camelCase) 매핑.
 function toClient(row: Record<string, unknown>): TrackedPrompt {
@@ -32,15 +36,22 @@ function bad(message: string) {
 }
 
 export async function GET() {
+  const user = await getUser();
+  if (!user) return unauthorized();
+
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("tracked_prompts")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }); // RLS 가 본인 행만 반환.
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ tracked: (data ?? []).map(toClient) });
 }
 
 export async function POST(request: Request) {
+  const user = await getUser();
+  if (!user) return unauthorized();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -89,7 +100,9 @@ export async function POST(request: Request) {
     ? (b.frequency as RunFrequency)
     : "weekly";
 
-  // 활성 프롬프트 총 상한 검사 (Pro 한도 / 베타 원가 폭주 방지).
+  const supabase = await createClient();
+
+  // 활성 프롬프트 상한 검사 (RLS 로 본인 행만 카운트 → 고객당 Pro 한도).
   const { count, error: countError } = await supabase
     .from("tracked_prompts")
     .select("*", { count: "exact", head: true })
@@ -112,6 +125,7 @@ export async function POST(request: Request) {
       classify: b.classify === true,
       active: true,
       frequency,
+      user_id: user.id, // RLS with check(auth.uid()=user_id) 통과.
     })
     .select()
     .single();
@@ -123,8 +137,14 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const user = await getUser();
+  if (!user) return unauthorized();
+
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return bad("id 쿼리 파라미터가 필요합니다.");
+
+  const supabase = await createClient();
+  // RLS 가 본인 행만 삭제 대상으로 삼는다(타인 행은 매치되지 않음).
   const { error } = await supabase.from("tracked_prompts").delete().eq("id", id);
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ ok: true });

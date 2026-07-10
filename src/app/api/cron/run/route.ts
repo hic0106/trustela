@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         engines: (row.engines as EngineId[]) ?? [],
         classify: (row.classify as boolean) === true,
       });
-      await saveAnalysis(row.prompt as string, result);
+      await saveAnalysis(row.prompt as string, result, (row.user_id as string | null) ?? null);
       await supabase
         .from("tracked_prompts")
         .update({ last_run_at: new Date().toISOString() })

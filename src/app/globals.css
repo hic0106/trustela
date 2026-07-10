@@ -203,6 +203,29 @@ body {
 .tl .tracked-remove { flex-shrink:0; font:inherit; font-size:13px; line-height:1; border:1px solid var(--line); background:var(--surface); color:var(--ink-3); border-radius:8px; width:30px; height:30px; cursor:pointer; transition:color .15s, border-color .15s; }
 .tl .tracked-remove:hover { color:var(--down); border-color:var(--down); }
 
+/* auth — nav control */
+.tl .auth-nav { display:flex; align-items:center; gap:12px; }
+.tl .auth-nav-email { font-size:13px; color:var(--ink-3); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tl .auth-nav-out { padding:8px 14px; font-size:13px; }
+.tl .auth-nav-slot { display:inline-block; width:96px; height:38px; }
+
+/* free-run gate CTA */
+.tl .gate-box { max-width:760px; margin:20px auto 0; text-align:center; background:linear-gradient(180deg, color-mix(in srgb, var(--brand) 8%, var(--surface)), var(--surface)); border:1px solid color-mix(in srgb, var(--brand) 30%, var(--line)); border-radius:var(--r); padding:28px 24px; box-shadow:var(--shadow-sm); }
+.tl .gate-title { font-size:18px; font-weight:700; margin-bottom:8px; }
+.tl .gate-sub { font-size:14px; color:var(--ink-3); margin:0 auto 18px; max-width:440px; line-height:1.5; }
+
+/* auth — login page */
+.tl .auth-wrap { flex:1; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 20px; background:var(--bg); }
+.tl .auth-card { width:100%; max-width:400px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); padding:36px 32px; text-align:center; }
+.tl .auth-brand { display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:18px; color:var(--ink); text-decoration:none; margin-bottom:22px; }
+.tl .auth-title { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0 0 8px; }
+.tl .auth-sub { font-size:14px; color:var(--ink-3); margin:0 0 22px; line-height:1.5; }
+.tl .auth-form { display:flex; flex-direction:column; gap:12px; }
+.tl .auth-full { width:100%; justify-content:center; }
+.tl .auth-or { display:flex; align-items:center; gap:12px; margin:18px 0; color:var(--ink-3); font-size:12px; }
+.tl .auth-or::before, .tl .auth-or::after { content:""; flex:1; height:1px; background:var(--line); }
+.tl .auth-fine { font-size:11px; color:var(--ink-3); margin:22px 0 0; line-height:1.5; }
+
 /* results (real) */
 .tl .result-block { max-width:760px; margin:26px auto 0; display:flex; flex-direction:column; gap:24px; }
 .tl .engine-pills { display:flex; flex-wrap:wrap; gap:8px; }

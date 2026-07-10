@@ -1,6 +1,10 @@
-// POST /api/analyze — 프롬프트를 엔진들에 돌려 SoV·순위·(옵션)전환형 인용을 반환 + Supabase에 저장.
+// POST /api/analyze — 프롬프트를 엔진들에 돌려 SoV·순위·(옵션)전환형 인용을 반환.
+// 로그인 사용자: 결과를 본인 소유로 저장. 익명: 무료 1회만 허용(쿠키), 그 뒤엔 로그인 요구.
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { runPromptAnalysis } from "@/lib/pipeline/runPromptAnalysis";
 import { saveAnalysis } from "@/lib/db/saveAnalysis";
+import { getUser } from "@/lib/supabase/server";
 import type { Brand, EngineId, AnalysisResult } from "@/lib/types";
 
 // 엔진 호출 + 분류는 수십 초 걸릴 수 있다.
@@ -8,6 +12,9 @@ import type { Brand, EngineId, AnalysisResult } from "@/lib/types";
 export const maxDuration = 60;
 
 const ALLOWED_ENGINES: EngineId[] = ["chatgpt", "perplexity", "gemini"];
+// 익명 무료 1회 소진 표시 쿠키. 로그인 없이 이 값이 있으면 추가 실행 차단.
+const FREE_COOKIE = "tl_free_used";
+const FREE_MAX_AGE = 60 * 60 * 24 * 30; // 30일
 
 function bad(message: string) {
   return Response.json({ error: message }, { status: 400 });
@@ -64,6 +71,22 @@ export async function POST(request: Request) {
     return bad("engines 는 chatgpt·perplexity 중 최소 하나여야 합니다.");
   }
 
+  const user = await getUser();
+
+  // 익명 사용자: 무료 1회만. 이미 소진했으면 로그인 요구(비용 통제).
+  if (!user) {
+    const cookieStore = await cookies();
+    if (cookieStore.get(FREE_COOKIE)) {
+      return Response.json(
+        {
+          error: "login_required",
+          message: "Your free analysis is used. Log in to keep analyzing.",
+        },
+        { status: 401 },
+      );
+    }
+  }
+
   try {
     const result: AnalysisResult = await runPromptAnalysis({
       prompt: b.prompt.trim(),
@@ -73,10 +96,21 @@ export async function POST(request: Request) {
       classify: b.classify === true,
     });
 
-    // Supabase에 저장 (실패해도 분석 결과는 반환 — 비차단)
-    await saveAnalysis(b.prompt.trim(), result);
+    if (user) {
+      // 로그인 사용자: 본인 소유로 저장(실패해도 결과는 반환 — 비차단).
+      await saveAnalysis(b.prompt.trim(), result, user.id);
+      return Response.json(result);
+    }
 
-    return Response.json(result);
+    // 익명 무료 실행: 소유자가 없으니 저장하지 않고, 무료 소진 쿠키만 심는다.
+    const res = NextResponse.json(result);
+    res.cookies.set(FREE_COOKIE, "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: FREE_MAX_AGE,
+    });
+    return res;
   } catch (err) {
     return Response.json({ error: (err as Error).message }, { status: 500 });
   }
