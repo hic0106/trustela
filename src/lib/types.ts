@@ -84,6 +84,9 @@ export interface HistoryPoint {
   shareOfVoice: Record<string, number>;
 }
 
+/** 자동 실행 주기 — 플랜별 차등(Starter=주간, Pro=일간)의 원가 레버. */
+export type RunFrequency = "daily" | "weekly";
+
 /** 스케줄러가 정기적으로 자동 실행할 등록된 프롬프트. */
 export interface TrackedPrompt {
   id: string;
@@ -93,6 +96,8 @@ export interface TrackedPrompt {
   engines: EngineId[];
   classify: boolean;
   active: boolean;
+  /** 실행 주기. 미지정 시 원가 안전상 weekly. */
+  frequency: RunFrequency;
   lastRunAt: string | null;
 }
 

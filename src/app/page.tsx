@@ -161,7 +161,7 @@ export default function Home() {
       const res = await fetch("/api/tracked", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, selfBrandId: selfId, brands, engines: selectedEngines, classify }),
+        body: JSON.stringify({ prompt, selfBrandId: selfId, brands, engines: selectedEngines, classify, frequency: "weekly" }),
       });
       if (res.ok) await loadTracked();
     } catch {
@@ -376,7 +376,7 @@ export default function Home() {
                 {loading ? "Analyzing… (may take a while)" : "Analyze →"}
               </button>
               <button className="btn btn-ghost btn-lg" onClick={trackCurrent} disabled={trackBusy}>
-                {trackBusy ? "Adding…" : "＋ Auto-run daily"}
+                {trackBusy ? "Adding…" : "＋ Auto-run weekly"}
               </button>
             </div>
           </div>
@@ -385,7 +385,7 @@ export default function Home() {
             <div className="tracked">
               <div className="tracked-head">
                 <span className="barlab" style={{ margin: 0 }}>Auto-run schedule</span>
-                <span className="tracked-note">Runs automatically every day · fills your trend chart</span>
+                <span className="tracked-note">Runs automatically on schedule · fills your trend chart</span>
               </div>
               <ul className="tracked-list">
                 {tracked.map((t) => (
@@ -393,7 +393,7 @@ export default function Home() {
                     <div className="tracked-main">
                       <span className="tracked-prompt">{t.prompt}</span>
                       <span className="tracked-meta">
-                        {t.engines.join(" · ")}
+                        {t.frequency} · {t.engines.join(" · ")}
                         {t.lastRunAt ? ` · last run ${new Date(t.lastRunAt).toLocaleDateString()}` : " · not run yet"}
                       </span>
                     </div>
@@ -528,7 +528,7 @@ export default function Home() {
             <div className="price rv d2">
               <div className="pn">Pro</div>
               <div className="pp">$199<span className="per">/mo</span></div>
-              <ul><li>Unlimited prompts</li><li>Daily auto-runs</li><li>API access</li><li>Review-trust certification (add-on)</li></ul>
+              <ul><li>200 prompts</li><li>Daily auto-runs</li><li>API access</li><li>Review-trust certification (add-on)</li></ul>
               <a className="btn btn-ghost" href="#try">Contact us</a>
             </div>
           </div>

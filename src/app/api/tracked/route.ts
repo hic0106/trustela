@@ -3,9 +3,14 @@
 //   POST   /api/tracked         → 등록(현재 분석 설정 저장)
 //   DELETE /api/tracked?id=...  → 등록 해제
 import { supabase } from "@/lib/db/supabase";
-import type { Brand, EngineId, TrackedPrompt } from "@/lib/types";
+import type { Brand, EngineId, RunFrequency, TrackedPrompt } from "@/lib/types";
 
 const ALLOWED_ENGINES: EngineId[] = ["chatgpt", "perplexity", "gemini"];
+const ALLOWED_FREQUENCIES: RunFrequency[] = ["daily", "weekly"];
+
+// 등록 가능한 활성 프롬프트 총 상한 (Pro 플랜 한도 + 베타 원가 안전장치).
+// 계정/결제가 붙기 전까지는 전역 상한으로 폭주를 막는다. 필요시 env 로 조정.
+const MAX_ACTIVE_PROMPTS = Number(process.env.MAX_ACTIVE_PROMPTS) || 200;
 
 // DB(snake_case) → 클라이언트(camelCase) 매핑.
 function toClient(row: Record<string, unknown>): TrackedPrompt {
@@ -17,6 +22,7 @@ function toClient(row: Record<string, unknown>): TrackedPrompt {
     engines: (row.engines as EngineId[]) ?? [],
     classify: (row.classify as boolean) ?? true,
     active: (row.active as boolean) ?? true,
+    frequency: ((row.frequency as RunFrequency) ?? "weekly"),
     lastRunAt: (row.last_run_at as string | null) ?? null,
   };
 }
@@ -48,6 +54,7 @@ export async function POST(request: Request) {
     brands?: unknown;
     engines?: unknown;
     classify?: unknown;
+    frequency?: unknown;
   };
 
   if (typeof b.prompt !== "string" || !b.prompt.trim()) return bad("prompt(문자열)이 필요합니다.");
@@ -77,6 +84,24 @@ export async function POST(request: Request) {
     : [];
   if (engines.length === 0) return bad("engines 는 최소 하나여야 합니다.");
 
+  // 주기: 미지정/무효 시 원가 안전상 weekly 로 폴백.
+  const frequency: RunFrequency = ALLOWED_FREQUENCIES.includes(b.frequency as RunFrequency)
+    ? (b.frequency as RunFrequency)
+    : "weekly";
+
+  // 활성 프롬프트 총 상한 검사 (Pro 한도 / 베타 원가 폭주 방지).
+  const { count, error: countError } = await supabase
+    .from("tracked_prompts")
+    .select("*", { count: "exact", head: true })
+    .eq("active", true);
+  if (countError) return Response.json({ error: countError.message }, { status: 500 });
+  if ((count ?? 0) >= MAX_ACTIVE_PROMPTS) {
+    return Response.json(
+      { error: `자동 실행 프롬프트 한도(${MAX_ACTIVE_PROMPTS}개)에 도달했습니다. 기존 항목을 지우거나 상위 플랜이 필요합니다.` },
+      { status: 409 },
+    );
+  }
+
   const { data, error } = await supabase
     .from("tracked_prompts")
     .insert({
@@ -86,6 +111,7 @@ export async function POST(request: Request) {
       engines,
       classify: b.classify === true,
       active: true,
+      frequency,
     })
     .select()
     .single();
