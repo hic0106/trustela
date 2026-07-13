@@ -42,6 +42,9 @@ export default function AuthNav() {
       <span className="auth-nav-email" title={email}>
         {email}
       </span>
+      <a className="btn btn-ghost auth-nav-out" href="/dashboard">
+        Dashboard
+      </a>
       <button className="btn btn-ghost auth-nav-out" type="button" onClick={manageBilling}>
         Billing
       </button>

@@ -55,8 +55,8 @@ export async function POST(request: Request) {
     subscription_data: { trial_period_days: TRIAL_DAYS },
     client_reference_id: user.id,
     allow_promotion_codes: true,
-    success_url: `${base}/?billing=success`,
-    cancel_url: `${base}/#pricing`,
+    success_url: `${base}/dashboard?billing=success`,
+    cancel_url: `${base}/dashboard#plans`,
   });
 
   return Response.json({ url: session.url });

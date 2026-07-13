@@ -277,6 +277,33 @@ body {
 .tl .price li::before { content:"✓"; color:var(--wine); font-weight:800; }
 .tl .price .btn { margin-top:auto; }
 
+/* ── app dashboard (logged-in workspace) ─────────────────────────────── */
+.tl.app { min-height: 100vh; }
+.tl .app-band { padding: 52px 0 8px; }
+.tl .app-band:last-of-type { padding-bottom: 64px; }
+.tl .app-head { max-width: 760px; margin: 0 auto 22px; }
+.tl .app-head .eyebrow { display: block; }
+.tl .app-head h2 { font-size: clamp(21px, 3vw, 28px); font-weight: 800; letter-spacing: -.02em; margin: 8px 0 0; }
+.tl .app-head p { color: var(--ink-2); font-size: 14.5px; margin: 8px 0 0; line-height: 1.55; }
+.tl .app-band .toolcard { margin: 0 auto; }
+.tl .app-band .tracked, .tl .app-band .billing-banner, .tl .app-band .error-box, .tl .app-band .result-block { margin-left: auto; margin-right: auto; }
+
+/* brand setup — "or" divider between URL and manual fields */
+.tl .setup-or { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; color: var(--ink-3); font-size: 12px; }
+.tl .setup-or::before, .tl .setup-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* discover output (competitors + suggested prompts) */
+.tl .discover-out { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
+.tl .hint-inline { text-transform: none; letter-spacing: 0; color: var(--ink-3); font-weight: 400; }
+.tl .sugg-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.tl .sugg-prompts { display: flex; flex-direction: column; gap: 8px; }
+.tl .sugg-prompt { font: inherit; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: var(--ink); transition: border-color .15s, background .15s; }
+.tl .sugg-prompt:hover { border-color: var(--wine); background: var(--wine-soft); }
+.tl .sugg-prompt .sp-ic { flex-shrink: 0; }
+.tl .sugg-prompt .sp-text { flex: 1; font-size: 14px; line-height: 1.45; }
+.tl .sugg-prompt .sp-go { flex-shrink: 0; font-size: 12.5px; font-weight: 700; color: var(--wine); opacity: 0; transition: opacity .15s; }
+.tl .sugg-prompt:hover .sp-go { opacity: 1; }
+
 /* final + footer */
 .tl .final { text-align:center; padding:96px 0; }
 .tl .final h2 { font-size:clamp(28px,4.5vw,46px); font-weight:800; letter-spacing:-.03em; margin:0 auto; max-width:20ch; text-wrap:balance; }

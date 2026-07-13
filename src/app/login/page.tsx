@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -40,9 +41,9 @@ export default function LoginPage() {
     <div className="tl">
       <main className="auth-wrap">
         <div className="auth-card">
-          <a className="auth-brand" href="/">
+          <Link className="auth-brand" href="/">
             <span className="logo">🍷</span> Trustela
-          </a>
+          </Link>
 
           {sent ? (
             <>
