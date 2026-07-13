@@ -209,6 +209,11 @@ body {
 .tl .auth-nav-out { padding:8px 14px; font-size:13px; }
 .tl .auth-nav-slot { display:inline-block; width:96px; height:38px; }
 
+/* billing banner */
+.tl .billing-banner { max-width:760px; margin:20px auto 0; display:flex; align-items:center; justify-content:space-between; gap:12px; background:color-mix(in srgb, var(--brand) 10%, var(--surface)); border:1px solid color-mix(in srgb, var(--brand) 34%, var(--line)); color:var(--ink); border-radius:12px; padding:14px 16px; font-size:14px; font-weight:500; box-shadow:var(--shadow-sm); }
+.tl .billing-x { flex-shrink:0; border:none; background:none; color:var(--ink-3); font-size:14px; cursor:pointer; line-height:1; }
+.tl .billing-x:hover { color:var(--ink); }
+
 /* free-run gate CTA */
 .tl .gate-box { max-width:760px; margin:20px auto 0; text-align:center; background:linear-gradient(180deg, color-mix(in srgb, var(--brand) 8%, var(--surface)), var(--surface)); border:1px solid color-mix(in srgb, var(--brand) 30%, var(--line)); border-radius:var(--r); padding:28px 24px; box-shadow:var(--shadow-sm); }
 .tl .gate-title { font-size:18px; font-weight:700; margin-bottom:8px; }

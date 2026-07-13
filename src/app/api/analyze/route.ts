@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { runPromptAnalysis } from "@/lib/pipeline/runPromptAnalysis";
 import { saveAnalysis } from "@/lib/db/saveAnalysis";
 import { getUser } from "@/lib/supabase/server";
+import { getEntitlement } from "@/lib/billing/entitlement";
+import { supabase } from "@/lib/db/supabase";
 import type { Brand, EngineId, AnalysisResult } from "@/lib/types";
 
 // 엔진 호출 + 분류는 수십 초 걸릴 수 있다.
@@ -84,6 +86,29 @@ export async function POST(request: Request) {
         },
         { status: 401 },
       );
+    }
+  } else {
+    // 로그인 사용자: 유료면 무제한, free(미결제)면 월 수동 분석 한도 적용.
+    const ent = await getEntitlement(user.id);
+    const limit = ent.config.manualPerMonth;
+    if (Number.isFinite(limit)) {
+      const monthStart = new Date();
+      monthStart.setUTCDate(1);
+      monthStart.setUTCHours(0, 0, 0, 0);
+      const { count } = await supabase
+        .from("analyses")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("run_at", monthStart.toISOString());
+      if ((count ?? 0) >= limit) {
+        return Response.json(
+          {
+            error: "upgrade_required",
+            message: `Your free plan includes ${limit} analyses per month. Upgrade for unlimited.`,
+          },
+          { status: 402 },
+        );
+      }
     }
   }
 

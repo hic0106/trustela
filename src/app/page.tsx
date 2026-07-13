@@ -38,6 +38,8 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [tracked, setTracked] = useState<TrackedPrompt[]>([]);
   const [trackBusy, setTrackBusy] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [billingMsg, setBillingMsg] = useState<string | null>(null);
 
   // Scroll-reveal for marketing blocks. Content is visible by default; we only
   // arm the animation once JS is running, and always guarantee reveal via a
@@ -175,6 +177,13 @@ export default function Home() {
         window.location.href = "/login";
         return;
       }
+      if (res.status === 402 || res.status === 409) {
+        // 유료 필요 / 한도 초과 → 안내 + 가격 섹션으로.
+        const data = await res.json().catch(() => ({}));
+        setBillingMsg(data.message ?? "Upgrade your plan to add more auto-run prompts.");
+        document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" });
+        return;
+      }
       if (res.ok) await loadTracked();
     } catch {
       // ignore
@@ -191,6 +200,43 @@ export default function Home() {
       // ignore
     }
   }
+
+  // 가격 카드 → Stripe Checkout. 비로그인 시 로그인 페이지로.
+  async function startCheckout(plan: "starter" | "growth" | "pro") {
+    setCheckoutBusy(true);
+    setBillingMsg(null);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url as string; // Stripe 결제창으로 이동.
+        return;
+      }
+      setBillingMsg(data.message ?? data.error ?? "Could not start checkout.");
+    } catch {
+      setBillingMsg("Could not start checkout. Please try again.");
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }
+
+  // 결제 복귀 처리: ?billing=success 면 확인 메시지 + 목록 갱신.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("billing") === "success") {
+      setBillingMsg("🎉 You're subscribed! Your plan is active — start adding auto-run prompts.");
+      loadTracked();
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const brandNames = result ? buildBrandNames() : new Map<string, string>();
   const sortedBrands = result
@@ -416,6 +462,13 @@ export default function Home() {
             </div>
           )}
 
+          {billingMsg && (
+            <div className="billing-banner">
+              <span>{billingMsg}</span>
+              <button className="billing-x" onClick={() => setBillingMsg(null)} aria-label="Dismiss">✕</button>
+            </div>
+          )}
+
           {gated && (
             <div className="gate-box">
               <div className="gate-title">That was your free analysis 🎉</div>
@@ -538,20 +591,20 @@ export default function Home() {
               <div className="pn">Starter</div>
               <div className="pp">$39<span className="per">/mo</span></div>
               <ul><li>10 prompts</li><li>ChatGPT + Perplexity</li><li>Weekly auto-runs</li><li>SoV &amp; rank tracking</li></ul>
-              <a className="btn btn-ghost" href="#try">Get started</a>
+              <button className="btn btn-ghost" onClick={() => startCheckout("starter")} disabled={checkoutBusy}>Start free trial</button>
             </div>
             <div className="price feat rv d1">
               <div className="feat-tag">Most popular</div>
               <div className="pn">Growth</div>
               <div className="pp">$99<span className="per">/mo</span></div>
               <ul><li>50 prompts</li><li>All engines + Gemini</li><li>Conversion citation analysis</li><li>Time-series charts</li><li>5 competitors</li></ul>
-              <a className="btn btn-primary" href="#try">Get started</a>
+              <button className="btn btn-primary" onClick={() => startCheckout("growth")} disabled={checkoutBusy}>Start free trial</button>
             </div>
             <div className="price rv d2">
               <div className="pn">Pro</div>
               <div className="pp">$199<span className="per">/mo</span></div>
               <ul><li>200 prompts</li><li>Daily auto-runs</li><li>API access</li><li>Review-trust certification (add-on)</li></ul>
-              <a className="btn btn-ghost" href="#try">Contact us</a>
+              <button className="btn btn-ghost" onClick={() => startCheckout("pro")} disabled={checkoutBusy}>Start free trial</button>
             </div>
           </div>
         </div>
