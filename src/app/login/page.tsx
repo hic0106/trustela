@@ -86,7 +86,8 @@ export default function LoginPage() {
           {error && <p className="error-box">⚠️ {error}</p>}
 
           <p className="auth-fine">
-            By continuing you agree to our terms. We only use your email to sign you in.
+            By continuing you agree to our <a href="/terms">Terms</a> and{" "}
+            <a href="/privacy">Privacy Policy</a>. We only use your email to sign you in.
           </p>
         </div>
       </main>

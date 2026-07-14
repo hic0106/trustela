@@ -256,7 +256,12 @@ export default function Dashboard() {
         <div className="wrap">
           <div className="row">
             <div className="brand" style={{ fontSize: "16px" }}><span className="logo">🍷</span> Trustela</div>
-            <div>AI search visibility + review trust · © 2026</div>
+            <div className="foot-links">
+              <a href="/terms">Terms</a>
+              <a href="/privacy">Privacy</a>
+              <a href="/refunds">Refunds</a>
+              <span>© 2026</span>
+            </div>
           </div>
         </div>
       </footer>
