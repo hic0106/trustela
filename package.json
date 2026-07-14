@@ -7,12 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "setup:paddle": "tsx scripts/setup-paddle.ts",
     "test:engines": "tsx scripts/test-engines.ts",
     "test:parser": "tsx scripts/test-parser.ts",
     "demo:analysis": "tsx scripts/demo-analysis.ts",
     "demo:classify": "tsx scripts/demo-classify.ts"
   },
   "dependencies": {
+    "@paddle/paddle-js": "^1.6.4",
+    "@paddle/paddle-node-sdk": "^3.8.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.47.3",
     "next": "16.2.10",

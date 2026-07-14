@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import Analyzer from "@/components/Analyzer";
 import AuthNav from "@/components/AuthNav";
+import { startPlanCheckout } from "@/lib/billing/checkoutClient";
 
 export default function Landing() {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -47,31 +48,17 @@ export default function Landing() {
     };
   }, []);
 
-  // 가격 카드 → Stripe Checkout. 비로그인 시 로그인 페이지로.
+  // 가격 카드 → Paddle 오버레이 체크아웃. 비로그인 시 로그인 페이지로.
   async function startCheckout(plan: "starter" | "growth" | "pro") {
     setCheckoutBusy(true);
     setBillingMsg(null);
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      });
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      const data = await res.json();
-      if (res.ok && data.url) {
-        window.location.href = data.url as string; // Stripe 결제창으로 이동.
-        return;
-      }
-      setBillingMsg(data.message ?? data.error ?? "Could not start checkout.");
-    } catch {
-      setBillingMsg("Could not start checkout. Please try again.");
-    } finally {
-      setCheckoutBusy(false);
+    const result = await startPlanCheckout(plan);
+    if (result.loginRequired) {
+      window.location.href = "/login";
+      return;
     }
+    if (!result.ok && result.message) setBillingMsg(result.message);
+    setCheckoutBusy(false);
   }
 
   return (

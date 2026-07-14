@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import Analyzer, { type AnalyzerPrefill } from "@/components/Analyzer";
 import AuthNav from "@/components/AuthNav";
+import { startPlanCheckout } from "@/lib/billing/checkoutClient";
 
 interface Discovery {
   brand: string | null;
@@ -81,23 +82,9 @@ export default function Dashboard() {
   async function startCheckout(plan: "starter" | "growth" | "pro") {
     setCheckoutBusy(true);
     setBillingMsg(null);
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        window.location.href = data.url as string; // Stripe 결제창으로 이동.
-        return;
-      }
-      setBillingMsg(data.message ?? data.error ?? "Could not start checkout.");
-    } catch {
-      setBillingMsg("Could not start checkout. Please try again.");
-    } finally {
-      setCheckoutBusy(false);
-    }
+    const result = await startPlanCheckout(plan); // Paddle 오버레이 결제창.
+    if (!result.ok && result.message) setBillingMsg(result.message);
+    setCheckoutBusy(false);
   }
 
   return (

@@ -44,6 +44,25 @@ export function planForPriceId(priceId: string | undefined | null): PlanId {
   return "free";
 }
 
+/** 플랜 → Paddle Price ID (env). 서버에서만 사용. */
+export function paddlePriceIdForPlan(plan: PlanId): string | undefined {
+  switch (plan) {
+    case "starter": return process.env.PADDLE_PRICE_STARTER;
+    case "growth":  return process.env.PADDLE_PRICE_GROWTH;
+    case "pro":     return process.env.PADDLE_PRICE_PRO;
+    default:        return undefined;
+  }
+}
+
+/** Paddle Price ID → 플랜 (webhook 에서 구독의 플랜 판별). */
+export function planForPaddlePriceId(priceId: string | undefined | null): PlanId {
+  if (!priceId) return "free";
+  if (priceId === process.env.PADDLE_PRICE_STARTER) return "starter";
+  if (priceId === process.env.PADDLE_PRICE_GROWTH) return "growth";
+  if (priceId === process.env.PADDLE_PRICE_PRO) return "pro";
+  return "free";
+}
+
 /** 구독 status 가 이용 권한이 있는 상태인가(체험 포함). */
 export function isEntitledStatus(status: string): boolean {
   return status === "active" || status === "trialing";
